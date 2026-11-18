@@ -1,0 +1,1 @@
+import{c as e}from"./createLucideIcon-CPqeLbuJ.js";import{t}from"./InfoPage-D7qQiHEt.js";var n=e(),r=()=>(0,n.jsx)(t,{title:`Track My Order`,intro:`Check the status of your Blackwell BD order.`,sections:[]});export{r as component};

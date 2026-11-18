@@ -1,0 +1,1 @@
+import{c as e}from"./createLucideIcon-CPqeLbuJ.js";import{t}from"./InfoPage-D7qQiHEt.js";var n=e(),r=()=>(0,n.jsx)(t,{title:`Return & Refund Policy`,intro:`How returns and refunds work at Blackwell BD.`,sections:[]});export{r as component};
