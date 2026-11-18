@@ -136,13 +136,41 @@ export function buildOrderMessage(o: WaOrder): string {
   return out.join("\n");
 }
 
+/**
+ * Official Click-to-Chat URL. Prefer api.whatsapp.com over wa.me —
+ * it is more reliable inside mobile browsers and in-app webviews.
+ * Use encodeURIComponent (not URLSearchParams) so spaces become %20 —
+ * WhatsApp sometimes leaves "+" as a literal character in the draft message.
+ */
 export function whatsappUrl(number: string, message?: string): string {
   const digits = number.replace(/\D/g, "");
-  const base = `https://wa.me/${digits}`;
-  return message ? `${base}?text=${encodeURIComponent(message)}` : base;
+  let url = `https://api.whatsapp.com/send?phone=${digits}`;
+  if (message) url += `&text=${encodeURIComponent(message)}`;
+  return url;
 }
 
+/**
+ * Open WhatsApp with an optional pre-filled message.
+ * Production browsers often block window.open(..., "noopener") as a popup,
+ * especially outside a direct click — use same-tab on mobile and a guarded
+ * new-tab open on desktop.
+ */
 export function openWhatsApp(number: string, message?: string) {
   if (typeof window === "undefined") return;
-  window.open(whatsappUrl(number, message), "_blank", "noopener,noreferrer");
+  const url = whatsappUrl(number, message);
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent,
+  );
+
+  // Phones: same-tab navigation opens the WhatsApp app reliably.
+  if (isMobile) {
+    window.location.assign(url);
+    return;
+  }
+
+  // Desktop: try a new tab (WhatsApp Web). If the popup is blocked, navigate here.
+  const win = window.open(url, "_blank");
+  if (!win) {
+    window.location.assign(url);
+  }
 }

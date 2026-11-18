@@ -21,7 +21,7 @@ export const Route = createFileRoute("/cart")({
 
 function CartPage() {
   const { cartLines, updateQty, removeFromCart, subtotal, shipping, total } = useStore();
-  const { orderCartOnWhatsApp } = useWhatsAppCheckout();
+  const { orderUrl } = useWhatsAppCheckout();
 
   return (
     <>
@@ -58,9 +58,13 @@ function CartPage() {
               <p className="text-lg font-semibold">Total: {formatBDT(total)}</p>
             </div>
             <div className="mt-6 text-right">
-              <Button variant="whatsapp" size="lg" onClick={() => orderCartOnWhatsApp()}>
-                <WhatsAppIcon className="h-4 w-4" /> Checkout on WhatsApp
-              </Button>
+              {orderUrl ? (
+                <Button variant="whatsapp" size="lg" asChild>
+                  <a href={orderUrl} target="_blank" rel="noopener noreferrer">
+                    <WhatsAppIcon className="h-4 w-4" /> Checkout on WhatsApp
+                  </a>
+                </Button>
+              ) : null}
             </div>
           </>
         )}

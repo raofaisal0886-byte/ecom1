@@ -12,15 +12,10 @@ import { WhatsAppIcon } from "./WhatsAppIcon";
 export function CartDrawer() {
   const { cartOpen, setCartOpen, cartLines, subtotal, shipping, total, updateQty, removeFromCart, settings, cartCount } = useStore();
   const { t, tf } = useI18n();
-  const { orderCartOnWhatsApp } = useWhatsAppCheckout();
+  const { orderUrl } = useWhatsAppCheckout();
   const navigate = useNavigate();
   const remaining = settings.freeShippingThreshold - subtotal;
   const progress = settings.freeShippingThreshold > 0 ? Math.min(100, (subtotal / settings.freeShippingThreshold) * 100) : 100;
-
-  const checkoutOnWhatsApp = () => {
-    setCartOpen(false);
-    orderCartOnWhatsApp();
-  };
 
   return (
     <Sheet open={cartOpen} onOpenChange={setCartOpen}>
@@ -83,9 +78,17 @@ export function CartDrawer() {
               <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t.subtotal}</span><span className="font-medium">{formatBDT(subtotal)}</span></div>
               <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t.deliveryEstimated}</span><span className="font-medium">{shipping === 0 ? t.free : formatBDT(shipping)}</span></div>
               <div className="flex justify-between border-t border-border pt-3 text-base"><span className="font-medium">{t.total}</span><span className="font-semibold">{formatBDT(total)}</span></div>
-              <Button variant="whatsapp" size="lg" className="w-full" onClick={checkoutOnWhatsApp}>
-                <WhatsAppIcon className="h-4 w-4" /> {t.checkout}
-              </Button>
+              {orderUrl ? (
+                <Button variant="whatsapp" size="lg" className="w-full" asChild>
+                  <a href={orderUrl} target="_blank" rel="noopener noreferrer" onClick={() => setCartOpen(false)}>
+                    <WhatsAppIcon className="h-4 w-4" /> {t.checkout}
+                  </a>
+                </Button>
+              ) : (
+                <Button variant="whatsapp" size="lg" className="w-full" disabled>
+                  <WhatsAppIcon className="h-4 w-4" /> {t.checkout}
+                </Button>
+              )}
               <Link to="/cart" onClick={() => setCartOpen(false)} className="block text-center text-xs uppercase tracking-[0.18em] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">{t.viewFullBag}</Link>
             </div>
           </>

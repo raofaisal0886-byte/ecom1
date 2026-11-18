@@ -605,7 +605,7 @@ var p_polo_default = "/assets/p-polo-FYBFS7US.jpg";
 var p_serum_default = "/assets/p-serum-Bx55fH0v.jpg";
 //#endregion
 //#region src/assets/p-lipstick.jpg
-var p_lipstick_default = "/assets/p-lipstick-CfpGZqeI.jpg";
+var p_lipstick_default = "/assets/p-lipstick-COjUxCTv.jpg";
 //#endregion
 //#region src/assets/p-perfume.jpg
 var p_perfume_default = "/assets/p-perfume-Dooeuh9e.jpg";
@@ -1135,11 +1135,11 @@ var seedProducts = [
 		name: "Velvet Matte Lipstick Set",
 		nameBn: "ভেলভেট ম্যাট লিপস্টিক সেট",
 		categoryId: "beauty",
-		price: 1690,
+		price: 1090,
 		images: [p_lipstick_default],
-		rating: 4.6,
+		rating: 4.8,
 		reviews: 97,
-		stock: 28,
+		stock: 299998,
 		colors: [
 			{
 				name: "Nude",
@@ -2597,13 +2597,31 @@ function buildOrderMessage(o) {
 	out.push(L.confirm);
 	return out.join("\n");
 }
+/**
+* Official Click-to-Chat URL. Prefer api.whatsapp.com over wa.me —
+* it is more reliable inside mobile browsers and in-app webviews.
+* Use encodeURIComponent (not URLSearchParams) so spaces become %20 —
+* WhatsApp sometimes leaves "+" as a literal character in the draft message.
+*/
 function whatsappUrl(number, message) {
-	const base = `https://wa.me/${number.replace(/\D/g, "")}`;
-	return message ? `${base}?text=${encodeURIComponent(message)}` : base;
+	let url = `https://api.whatsapp.com/send?phone=${number.replace(/\D/g, "")}`;
+	if (message) url += `&text=${encodeURIComponent(message)}`;
+	return url;
 }
+/**
+* Open WhatsApp with an optional pre-filled message.
+* Production browsers often block window.open(..., "noopener") as a popup,
+* especially outside a direct click — use same-tab on mobile and a guarded
+* new-tab open on desktop.
+*/
 function openWhatsApp(number, message) {
 	if (typeof window === "undefined") return;
-	window.open(whatsappUrl(number, message), "_blank", "noopener,noreferrer");
+	const url = whatsappUrl(number, message);
+	if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+		window.location.assign(url);
+		return;
+	}
+	if (!window.open(url, "_blank")) window.location.assign(url);
 }
 //#endregion
 //#region src/components/store/WhatsAppIcon.tsx
@@ -2897,33 +2915,38 @@ Button.displayName = "Button";
 function useWhatsAppCheckout() {
 	const { locale } = useI18n();
 	const { cartLines, subtotal, shipping, total, settings } = useStore();
+	const orderMessage = (0, import_react.useMemo)(() => {
+		if (cartLines.length === 0) return "";
+		return buildOrderMessage({
+			storeName: settings.storeName,
+			locale,
+			lines: cartLines.map(({ item, product }) => ({
+				name: product.name,
+				qty: item.qty,
+				price: product.price,
+				size: item.size,
+				color: item.color
+			})),
+			subtotal,
+			shipping,
+			total
+		});
+	}, [
+		cartLines,
+		locale,
+		settings.storeName,
+		shipping,
+		subtotal,
+		total
+	]);
+	const orderUrl = (0, import_react.useMemo)(() => orderMessage ? whatsappUrl(settings.whatsappNumber, orderMessage) : "", [orderMessage, settings.whatsappNumber]);
 	return {
 		orderCartOnWhatsApp: (0, import_react.useCallback)(() => {
-			if (cartLines.length === 0) return false;
-			openWhatsApp(settings.whatsappNumber, buildOrderMessage({
-				storeName: settings.storeName,
-				locale,
-				lines: cartLines.map(({ item, product }) => ({
-					name: product.name,
-					qty: item.qty,
-					price: product.price,
-					size: item.size,
-					color: item.color
-				})),
-				subtotal,
-				shipping,
-				total
-			}));
+			if (!orderMessage) return false;
+			openWhatsApp(settings.whatsappNumber, orderMessage);
 			return true;
-		}, [
-			cartLines,
-			locale,
-			settings.storeName,
-			settings.whatsappNumber,
-			shipping,
-			subtotal,
-			total
-		]),
+		}, [orderMessage, settings.whatsappNumber]),
+		orderUrl,
 		hasItems: cartLines.length > 0
 	};
 }
@@ -2962,14 +2985,10 @@ function QuantitySelector({ value, onChange, max = 99, size = "md", className })
 function CartDrawer() {
 	const { cartOpen, setCartOpen, cartLines, subtotal, shipping, total, updateQty, removeFromCart, settings, cartCount } = useStore();
 	const { t, tf } = useI18n();
-	const { orderCartOnWhatsApp } = useWhatsAppCheckout();
+	const { orderUrl } = useWhatsAppCheckout();
 	const navigate = useNavigate();
 	const remaining = settings.freeShippingThreshold - subtotal;
 	const progress = settings.freeShippingThreshold > 0 ? Math.min(100, subtotal / settings.freeShippingThreshold * 100) : 100;
-	const checkoutOnWhatsApp = () => {
-		setCartOpen(false);
-		orderCartOnWhatsApp();
-	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Sheet, {
 		open: cartOpen,
 		onOpenChange: setCartOpen,
@@ -3111,11 +3130,27 @@ function CartDrawer() {
 								children: formatBDT(total)
 							})]
 						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+						orderUrl ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 							variant: "whatsapp",
 							size: "lg",
 							className: "w-full",
-							onClick: checkoutOnWhatsApp,
+							asChild: true,
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
+								href: orderUrl,
+								target: "_blank",
+								rel: "noopener noreferrer",
+								onClick: () => setCartOpen(false),
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(WhatsAppIcon, { className: "h-4 w-4" }),
+									" ",
+									t.checkout
+								]
+							})
+						}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+							variant: "whatsapp",
+							size: "lg",
+							className: "w-full",
+							disabled: true,
 							children: [
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(WhatsAppIcon, { className: "h-4 w-4" }),
 								" ",
@@ -4674,7 +4709,7 @@ var Route$16 = createFileRoute("/cart")({
 });
 function CartPage() {
 	const { cartLines, updateQty, removeFromCart, subtotal, shipping, total } = useStore();
-	const { orderCartOnWhatsApp } = useWhatsAppCheckout();
+	const { orderUrl } = useWhatsAppCheckout();
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PageHeader, {
 		title: "Shopping Cart",
 		crumbs: [{ label: "Cart" }]
@@ -4742,12 +4777,17 @@ function CartPage() {
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 				className: "mt-6 text-right",
-				children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+				children: orderUrl ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 					variant: "whatsapp",
 					size: "lg",
-					onClick: () => orderCartOnWhatsApp(),
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(WhatsAppIcon, { className: "h-4 w-4" }), " Checkout on WhatsApp"]
-				})
+					asChild: true,
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
+						href: orderUrl,
+						target: "_blank",
+						rel: "noopener noreferrer",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(WhatsAppIcon, { className: "h-4 w-4" }), " Checkout on WhatsApp"]
+					})
+				}) : null
 			})
 		] })
 	})] });
@@ -4815,25 +4855,15 @@ var Route$14 = createFileRoute("/checkout")({
 	component: CheckoutPage
 });
 function CheckoutPage() {
-	const { cartLines, subtotal, shipping, total, settings, hydrated } = useStore();
-	const { orderCartOnWhatsApp, hasItems } = useWhatsAppCheckout();
-	const opened = (0, import_react.useRef)(false);
-	(0, import_react.useEffect)(() => {
-		if (!hydrated || !hasItems || opened.current) return;
-		opened.current = true;
-		orderCartOnWhatsApp();
-	}, [
-		hydrated,
-		hasItems,
-		orderCartOnWhatsApp
-	]);
+	const { cartLines, subtotal, shipping, total, settings } = useStore();
+	const { orderUrl, hasItems } = useWhatsAppCheckout();
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PageHeader, {
 		title: "Checkout",
 		description: "Your order opens in WhatsApp with every item, quantity, price and total ready to send.",
 		crumbs: [{ label: "Checkout" }]
 	}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 		className: "container-luxe max-w-xl py-14 text-center",
-		children: !hasItems ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+		children: !hasItems || !orderUrl ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 				className: "font-display text-2xl",
 				children: "Your bag is empty"
@@ -4850,7 +4880,7 @@ function CheckoutPage() {
 		] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 				className: "text-sm text-muted-foreground",
-				children: "Opening WhatsApp with your order…"
+				children: "Tap below to send your order on WhatsApp."
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 				className: "mt-4 font-display text-3xl",
@@ -4872,17 +4902,22 @@ function CheckoutPage() {
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 				className: "mt-6 text-sm text-muted-foreground",
 				children: [
-					"If WhatsApp did not open, tap below to message ",
+					"Message ",
 					settings.phoneDisplay,
-					"."
+					" with your full order details ready to send."
 				]
 			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 				variant: "whatsapp",
 				size: "lg",
 				className: "mt-6",
-				onClick: () => orderCartOnWhatsApp(),
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(WhatsAppIcon, { className: "h-4 w-4" }), " Open WhatsApp order"]
+				asChild: true,
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
+					href: orderUrl,
+					target: "_blank",
+					rel: "noopener noreferrer",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(WhatsAppIcon, { className: "h-4 w-4" }), " Open WhatsApp order"]
+				})
 			})
 		] })
 	})] });
@@ -5573,6 +5608,19 @@ function ProductPage() {
 	const s = size ?? p.sizes?.[0];
 	const c = color ?? p.colors?.[0]?.name;
 	const soldOut = p.stock <= 0;
+	const waOrderUrl = whatsappUrl(settings.whatsappNumber, buildOrderMessage({
+		storeName: settings.storeName,
+		lines: [{
+			name: p.name,
+			qty,
+			price: p.price,
+			size: s,
+			color: c
+		}],
+		subtotal: p.price * qty,
+		shipping: 0,
+		total: p.price * qty
+	}));
 	const add = () => {
 		addToCart(p.id, qty, {
 			size: s,
@@ -5649,25 +5697,23 @@ function ProductPage() {
 					children: "Add to Cart"
 				})]
 			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+			soldOut ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 				variant: "whatsapp",
 				size: "lg",
 				className: "mt-3 w-full",
-				disabled: soldOut,
-				onClick: () => openWhatsApp(settings.whatsappNumber, buildOrderMessage({
-					storeName: settings.storeName,
-					lines: [{
-						name: p.name,
-						qty,
-						price: p.price,
-						size: s,
-						color: c
-					}],
-					subtotal: p.price * qty,
-					shipping: 0,
-					total: p.price * qty
-				})),
+				disabled: true,
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(WhatsAppIcon, { className: "h-4 w-4" }), " Order via WhatsApp"]
+			}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+				variant: "whatsapp",
+				size: "lg",
+				className: "mt-3 w-full",
+				asChild: true,
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
+					href: waOrderUrl,
+					target: "_blank",
+					rel: "noopener noreferrer",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(WhatsAppIcon, { className: "h-4 w-4" }), " Order via WhatsApp"]
+				})
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", {
 				className: "mt-6 list-disc space-y-1 pl-5 text-sm text-muted-foreground",

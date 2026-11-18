@@ -1,5 +1,4 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useRef } from "react";
 import { PageHeader } from "@/components/store/PageHeader";
 import { WhatsAppIcon } from "@/components/store/WhatsAppIcon";
 import { Button } from "@/components/ui/button";
@@ -20,15 +19,8 @@ export const Route = createFileRoute("/checkout")({
 });
 
 function CheckoutPage() {
-  const { cartLines, subtotal, shipping, total, settings, hydrated } = useStore();
-  const { orderCartOnWhatsApp, hasItems } = useWhatsAppCheckout();
-  const opened = useRef(false);
-
-  useEffect(() => {
-    if (!hydrated || !hasItems || opened.current) return;
-    opened.current = true;
-    orderCartOnWhatsApp();
-  }, [hydrated, hasItems, orderCartOnWhatsApp]);
+  const { cartLines, subtotal, shipping, total, settings } = useStore();
+  const { orderUrl, hasItems } = useWhatsAppCheckout();
 
   return (
     <>
@@ -38,7 +30,7 @@ function CheckoutPage() {
         crumbs={[{ label: "Checkout" }]}
       />
       <div className="container-luxe max-w-xl py-14 text-center">
-        {!hasItems ? (
+        {!hasItems || !orderUrl ? (
           <>
             <p className="font-display text-2xl">Your bag is empty</p>
             <p className="mt-2 text-sm text-muted-foreground">Add products first, then checkout on WhatsApp.</p>
@@ -51,15 +43,18 @@ function CheckoutPage() {
           </>
         ) : (
           <>
-            <p className="text-sm text-muted-foreground">Opening WhatsApp with your order…</p>
+            <p className="text-sm text-muted-foreground">Tap below to send your order on WhatsApp.</p>
             <p className="mt-4 font-display text-3xl">{formatBDT(total)}</p>
             <p className="mt-1 text-xs text-muted-foreground">
               {cartLines.length} line{cartLines.length === 1 ? "" : "s"} · Delivery {shipping === 0 ? "Free" : formatBDT(shipping)} · Subtotal{" "}
               {formatBDT(subtotal)}
             </p>
-            <p className="mt-6 text-sm text-muted-foreground">If WhatsApp did not open, tap below to message {settings.phoneDisplay}.</p>
-            <Button variant="whatsapp" size="lg" className="mt-6" onClick={() => orderCartOnWhatsApp()}>
-              <WhatsAppIcon className="h-4 w-4" /> Open WhatsApp order
+            <p className="mt-6 text-sm text-muted-foreground">Message {settings.phoneDisplay} with your full order details ready to send.</p>
+            {/* Real <a> link — not blocked like window.open from useEffect */}
+            <Button variant="whatsapp" size="lg" className="mt-6" asChild>
+              <a href={orderUrl} target="_blank" rel="noopener noreferrer">
+                <WhatsAppIcon className="h-4 w-4" /> Open WhatsApp order
+              </a>
             </Button>
           </>
         )}

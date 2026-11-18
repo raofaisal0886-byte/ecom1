@@ -8,7 +8,7 @@ import { WhatsAppIcon } from "@/components/store/WhatsAppIcon";
 import { seedProducts } from "@/lib/catalog";
 import { formatBDT } from "@/lib/format";
 import { useStore } from "@/lib/store";
-import { buildOrderMessage, openWhatsApp } from "@/lib/whatsapp";
+import { buildOrderMessage, whatsappUrl } from "@/lib/whatsapp";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/product/$slug")({
@@ -32,6 +32,16 @@ function ProductPage() {
   const s = size ?? p.sizes?.[0];
   const c = color ?? p.colors?.[0]?.name;
   const soldOut = p.stock <= 0;
+  const waOrderUrl = whatsappUrl(
+    settings.whatsappNumber,
+    buildOrderMessage({
+      storeName: settings.storeName,
+      lines: [{ name: p.name, qty, price: p.price, size: s, color: c }],
+      subtotal: p.price * qty,
+      shipping: 0,
+      total: p.price * qty,
+    }),
+  );
   const add = () => {
     addToCart(p.id, qty, { size: s, color: c });
     toast.success("Added to your bag", { description: p.name });
@@ -80,26 +90,17 @@ function ProductPage() {
             Add to Cart
           </Button>
         </div>
-        <Button
-          variant="whatsapp"
-          size="lg"
-          className="mt-3 w-full"
-          disabled={soldOut}
-          onClick={() =>
-            openWhatsApp(
-              settings.whatsappNumber,
-              buildOrderMessage({
-                storeName: settings.storeName,
-                lines: [{ name: p.name, qty, price: p.price, size: s, color: c }],
-                subtotal: p.price * qty,
-                shipping: 0,
-                total: p.price * qty,
-              }),
-            )
-          }
-        >
-          <WhatsAppIcon className="h-4 w-4" /> Order via WhatsApp
-        </Button>
+        {soldOut ? (
+          <Button variant="whatsapp" size="lg" className="mt-3 w-full" disabled>
+            <WhatsAppIcon className="h-4 w-4" /> Order via WhatsApp
+          </Button>
+        ) : (
+          <Button variant="whatsapp" size="lg" className="mt-3 w-full" asChild>
+            <a href={waOrderUrl} target="_blank" rel="noopener noreferrer">
+              <WhatsAppIcon className="h-4 w-4" /> Order via WhatsApp
+            </a>
+          </Button>
+        )}
         <ul className="mt-6 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
           {p.details.map((d) => (
             <li key={d}>{d}</li>
