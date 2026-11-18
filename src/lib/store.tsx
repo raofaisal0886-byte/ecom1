@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { seedBanners, seedCategories, seedProducts, type Banner, type Category, type Product } from "./catalog";
 import { calcShipping, defaultSettings, type DeliveryZone, type StoreSettings } from "./settings";
 
@@ -81,6 +81,7 @@ const KEYS = {
 
 function read<T>(key: string, fallback: T): T {
   try {
+    if (typeof window === "undefined") return fallback;
     const raw = window.localStorage.getItem(key);
     return raw ? (JSON.parse(raw) as T) : fallback;
   } catch {
@@ -90,10 +91,45 @@ function read<T>(key: string, fallback: T): T {
 
 function write(key: string, value: unknown) {
   try {
+    if (typeof window === "undefined") return;
     window.localStorage.setItem(key, JSON.stringify(value));
   } catch {
     // storage full or unavailable — ignore in demo mode
   }
+}
+
+/** Prefer seed catalog; overlay admin edits only when the saved product still looks valid. */
+function mergeProducts(saved: Product[] | null | undefined): Product[] {
+  if (!Array.isArray(saved) || saved.length === 0) return seedProducts;
+  const byId = new Map(saved.filter((p) => p && typeof p.id === "string").map((p) => [p.id, p]));
+  const merged = seedProducts.map((seed) => {
+    const edit = byId.get(seed.id);
+    if (!edit) return seed;
+    // Keep seed images if stored paths broke after a redeploy (hashed assets).
+    const images =
+      Array.isArray(edit.images) && edit.images.length > 0 && edit.images.every((src) => typeof src === "string" && src.length > 0)
+        ? edit.images
+        : seed.images;
+    return { ...seed, ...edit, id: seed.id, slug: seed.slug, images };
+  });
+  // Keep any admin-created products that aren't in the seed list.
+  const seedIds = new Set(seedProducts.map((p) => p.id));
+  for (const p of saved) {
+    if (p?.id && !seedIds.has(p.id) && typeof p.name === "string" && typeof p.price === "number") {
+      merged.push(p);
+    }
+  }
+  return merged;
+}
+
+function mergeCategories(saved: Category[] | null | undefined): Category[] {
+  if (!Array.isArray(saved) || saved.length === 0) return seedCategories;
+  const byId = new Map(saved.filter((c) => c && typeof c.id === "string").map((c) => [c.id, c]));
+  return seedCategories.map((seed) => {
+    const edit = byId.get(seed.id);
+    if (!edit) return seed;
+    return { ...seed, ...edit, id: seed.id, slug: seed.slug, image: edit.image || seed.image };
+  });
 }
 
 export function cartKey(productId: string, size?: string, color?: string) {
@@ -180,8 +216,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [cartOpen, setCartOpen] = useState(false);
 
   useEffect(() => {
-    setProducts(read(KEYS.products, seedProducts));
-    setCategories(read(KEYS.categories, seedCategories));
+    setProducts(mergeProducts(read<Product[] | null>(KEYS.products, null)));
+    setCategories(mergeCategories(read<Category[] | null>(KEYS.categories, null)));
     setBanners(read(KEYS.banners, seedBanners));
     // Always apply live store contact details so old localStorage demos can't keep dummy numbers.
     setSettings({
@@ -193,7 +229,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       bkashNumber: defaultSettings.bkashNumber,
       nagadNumber: defaultSettings.nagadNumber,
     });
-    setCart(read(KEYS.cart, []));
+    // Never wipe items the shopper already added before this effect ran (common on slow mobile).
+    setCart((current) => {
+      const saved = read<CartItem[]>(KEYS.cart, []);
+      if (current.length === 0) return Array.isArray(saved) ? saved : [];
+      if (!Array.isArray(saved) || saved.length === 0) return current;
+      const map = new Map<string, CartItem>();
+      for (const item of saved) map.set(item.key, item);
+      for (const item of current) {
+        const existing = map.get(item.key);
+        map.set(item.key, existing ? { ...existing, qty: Math.min(99, existing.qty + item.qty) } : item);
+      }
+      return [...map.values()];
+    });
     setWishlist(read(KEYS.wishlist, []));
     setOrders(read(KEYS.orders, []));
     setAccounts(read(KEYS.accounts, []));
@@ -202,12 +250,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setHydrated(true);
   }, []);
 
-  const first = useRef(true);
   useEffect(() => {
     if (!hydrated) return;
-    if (first.current) {
-      first.current = false;
-    }
     write(KEYS.cart, cart);
     write(KEYS.wishlist, wishlist);
     write(KEYS.orders, orders);
@@ -223,11 +267,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const getCategory = useCallback((id: string) => categories.find((c) => c.id === id), [categories]);
 
   const addToCart: StoreValue["addToCart"] = useCallback((productId, qty = 1, opts) => {
+    if (!productId) return;
     const key = cartKey(productId, opts?.size, opts?.color);
+    const amount = Math.max(1, Math.min(99, Number(qty) || 1));
     setCart((prev) => {
       const existing = prev.find((i) => i.key === key);
-      if (existing) return prev.map((i) => (i.key === key ? { ...i, qty: Math.min(99, i.qty + qty) } : i));
-      return [...prev, { key, productId, qty, size: opts?.size, color: opts?.color }];
+      const next = existing
+        ? prev.map((i) => (i.key === key ? { ...i, qty: Math.min(99, i.qty + amount) } : i))
+        : [...prev, { key, productId, qty: amount, size: opts?.size, color: opts?.color }];
+      // Persist immediately so a slow hydrate/persist effect can't drop the add.
+      write(KEYS.cart, next);
+      return next;
     });
   }, []);
 

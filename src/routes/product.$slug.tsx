@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { QuantitySelector } from "@/components/store/QuantitySelector";
@@ -26,15 +26,17 @@ function ProductPage() {
   const { slug } = Route.useParams();
   const { products, addToCart, setCartOpen, settings } = useStore();
   const { t, tf, locale } = useI18n();
-  const p = products.find((x) => x.slug === slug);
+  const p = products.find((x) => x.slug === slug) ?? seedProducts.find((x) => x.slug === slug);
   const [qty, setQty] = useState(1);
   const [size, setSize] = useState<string | undefined>(undefined);
   const [color, setColor] = useState<string | undefined>(undefined);
+
   if (!p) return <p className="container-luxe py-24 text-center">{t.productNotFound}</p>;
+
   const localized = localizeProduct(p, locale);
   const s = size ?? p.sizes?.[0];
   const c = color ?? p.colors?.[0]?.name;
-  const soldOut = p.stock <= 0;
+  const soldOut = Number(p.stock) <= 0;
   const bnCta = locale === "bn";
   const waOrderUrl = whatsappUrl(
     settings.whatsappNumber,
@@ -47,10 +49,19 @@ function ProductPage() {
       total: p.price * qty,
     }),
   );
-  const add = () => {
+
+  const handleAddToBag = (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (soldOut) return;
+
     addToCart(p.id, qty, { size: s, color: c });
     toast.success(t.addedToBag, { description: localized.name });
+
+    // Defer opening the sheet so this same click doesn't hit the overlay and close it.
+    window.setTimeout(() => setCartOpen(true), 0);
   };
+
   return (
     <div className="container-luxe grid gap-10 py-12 lg:grid-cols-2">
       <img src={p.images[0]} alt={localized.name} className="aspect-[4/5] w-full rounded-lg object-cover" />
@@ -66,7 +77,12 @@ function ProductPage() {
         {p.colors && (
           <div className="mt-5 flex flex-wrap gap-2">
             {p.colors.map((x) => (
-              <button key={x.name} type="button" onClick={() => setColor(x.name)} className={cn("rounded-md border px-3 py-1.5 text-sm", c === x.name && "border-foreground")}>
+              <button
+                key={x.name}
+                type="button"
+                onClick={() => setColor(x.name)}
+                className={cn("rounded-md border px-3 py-1.5 text-sm", c === x.name && "border-foreground")}
+              >
                 {locale === "bn" ? (x.nameBn ?? x.name) : x.name}
               </button>
             ))}
@@ -75,27 +91,31 @@ function ProductPage() {
         {p.sizes && (
           <div className="mt-3 flex flex-wrap gap-2">
             {p.sizes.map((x) => (
-              <button key={x} type="button" onClick={() => setSize(x)} className={cn("min-w-11 rounded-md border px-3 py-1.5 text-sm", s === x && "border-foreground")}>
+              <button
+                key={x}
+                type="button"
+                onClick={() => setSize(x)}
+                className={cn("min-w-11 rounded-md border px-3 py-1.5 text-sm", s === x && "border-foreground")}
+              >
                 {x}
               </button>
             ))}
           </div>
         )}
-        <div className="mt-6 flex flex-wrap gap-3">
-          <QuantitySelector value={qty} onChange={setQty} max={Math.max(1, p.stock)} />
-          <Button
-            variant="ink"
-            size="lg"
-            disabled={soldOut}
+        <div className="mt-6 flex flex-wrap items-center gap-3">
+          <QuantitySelector value={qty} onChange={setQty} max={Math.max(1, Number(p.stock) || 1)} />
+          {/* Native button — avoids any Slot/CVA edge cases on the primary shop action */}
+          <button
             type="button"
-            className={cn(bnCta && "normal-case tracking-normal")}
-            onClick={() => {
-              add();
-              setCartOpen(true);
-            }}
+            disabled={soldOut}
+            onClick={handleAddToBag}
+            className={cn(
+              "inline-flex h-12 min-w-[10rem] flex-1 items-center justify-center rounded-md bg-ink px-8 text-[0.8rem] font-medium text-ink-foreground transition-colors hover:bg-ink-soft disabled:pointer-events-none disabled:opacity-50 sm:flex-none",
+              bnCta ? "normal-case tracking-normal" : "uppercase tracking-[0.18em]",
+            )}
           >
             {t.addToBag}
-          </Button>
+          </button>
         </div>
         {soldOut ? (
           <Button variant="whatsapp" size="lg" className={cn("mt-3 w-full", bnCta && "normal-case tracking-normal")} disabled>

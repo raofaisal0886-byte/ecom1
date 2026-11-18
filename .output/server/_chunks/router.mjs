@@ -14,7 +14,7 @@ import { t as stringType } from "../_libs/zod.mjs";
 var import_react = /* @__PURE__ */ __toESM(require_react(), 1);
 //#endregion
 //#region src/styles.css?url
-var styles_default = "/assets/styles-0hknGw4e.css";
+var styles_default = "/assets/styles-D6LY18nK.css";
 //#endregion
 //#region src/lib/lovable-error-reporting.ts
 function reportLovableError(error, context = {}) {
@@ -124,9 +124,9 @@ var dictionaries = {
 		addedToBag: "Added to your bag",
 		savedWishlist: "Saved to wishlist",
 		removedWishlist: "Removed from wishlist",
-		addToCart: "Add to Cart",
+		addToCart: "Add to Bag",
 		buyNow: "Buy Now",
-		addToBag: "Add to bag",
+		addToBag: "Add to Bag",
 		chooseOptions: "Choose options",
 		viewDetails: "View details",
 		new: "New",
@@ -557,6 +557,18 @@ function useI18n() {
 	const ctx = (0, import_react.useContext)(I18nContext);
 	if (!ctx) throw new Error("useI18n must be used within I18nProvider");
 	return ctx;
+}
+function localizeProduct(product, locale) {
+	const bn = locale === "bn";
+	return {
+		name: bn ? product.nameBn ?? product.name : product.name,
+		description: bn ? product.descriptionBn ?? product.description : product.description,
+		details: bn ? product.detailsBn ?? product.details : product.details,
+		colors: product.colors?.map((c) => ({
+			...c,
+			label: bn ? c.nameBn ?? c.name : c.name
+		}))
+	};
 }
 //#endregion
 //#region src/assets/cat-women.jpg
@@ -1674,6 +1686,7 @@ var KEYS = {
 };
 function read(key, fallback) {
 	try {
+		if (typeof window === "undefined") return fallback;
 		const raw = window.localStorage.getItem(key);
 		return raw ? JSON.parse(raw) : fallback;
 	} catch {
@@ -1682,8 +1695,44 @@ function read(key, fallback) {
 }
 function write(key, value) {
 	try {
+		if (typeof window === "undefined") return;
 		window.localStorage.setItem(key, JSON.stringify(value));
 	} catch {}
+}
+/** Prefer seed catalog; overlay admin edits only when the saved product still looks valid. */
+function mergeProducts(saved) {
+	if (!Array.isArray(saved) || saved.length === 0) return seedProducts;
+	const byId = new Map(saved.filter((p) => p && typeof p.id === "string").map((p) => [p.id, p]));
+	const merged = seedProducts.map((seed) => {
+		const edit = byId.get(seed.id);
+		if (!edit) return seed;
+		const images = Array.isArray(edit.images) && edit.images.length > 0 && edit.images.every((src) => typeof src === "string" && src.length > 0) ? edit.images : seed.images;
+		return {
+			...seed,
+			...edit,
+			id: seed.id,
+			slug: seed.slug,
+			images
+		};
+	});
+	const seedIds = new Set(seedProducts.map((p) => p.id));
+	for (const p of saved) if (p?.id && !seedIds.has(p.id) && typeof p.name === "string" && typeof p.price === "number") merged.push(p);
+	return merged;
+}
+function mergeCategories(saved) {
+	if (!Array.isArray(saved) || saved.length === 0) return seedCategories;
+	const byId = new Map(saved.filter((c) => c && typeof c.id === "string").map((c) => [c.id, c]));
+	return seedCategories.map((seed) => {
+		const edit = byId.get(seed.id);
+		if (!edit) return seed;
+		return {
+			...seed,
+			...edit,
+			id: seed.id,
+			slug: seed.slug,
+			image: edit.image || seed.image
+		};
+	});
 }
 function cartKey(productId, size, color) {
 	return [
@@ -1710,8 +1759,8 @@ function StoreProvider({ children }) {
 	const [zone, setZone] = (0, import_react.useState)("inside");
 	const [cartOpen, setCartOpen] = (0, import_react.useState)(false);
 	(0, import_react.useEffect)(() => {
-		setProducts(read(KEYS.products, seedProducts));
-		setCategories(read(KEYS.categories, seedCategories));
+		setProducts(mergeProducts(read(KEYS.products, null)));
+		setCategories(mergeCategories(read(KEYS.categories, null)));
 		setBanners(read(KEYS.banners, seedBanners));
 		setSettings({
 			...defaultSettings,
@@ -1722,7 +1771,21 @@ function StoreProvider({ children }) {
 			bkashNumber: defaultSettings.bkashNumber,
 			nagadNumber: defaultSettings.nagadNumber
 		});
-		setCart(read(KEYS.cart, []));
+		setCart((current) => {
+			const saved = read(KEYS.cart, []);
+			if (current.length === 0) return Array.isArray(saved) ? saved : [];
+			if (!Array.isArray(saved) || saved.length === 0) return current;
+			const map = /* @__PURE__ */ new Map();
+			for (const item of saved) map.set(item.key, item);
+			for (const item of current) {
+				const existing = map.get(item.key);
+				map.set(item.key, existing ? {
+					...existing,
+					qty: Math.min(99, existing.qty + item.qty)
+				} : item);
+			}
+			return [...map.values()];
+		});
 		setWishlist(read(KEYS.wishlist, []));
 		setOrders(read(KEYS.orders, []));
 		setAccounts(read(KEYS.accounts, []));
@@ -1730,10 +1793,8 @@ function StoreProvider({ children }) {
 		setZone(read(KEYS.zone, "inside"));
 		setHydrated(true);
 	}, []);
-	const first = (0, import_react.useRef)(true);
 	(0, import_react.useEffect)(() => {
 		if (!hydrated) return;
-		if (first.current) first.current = false;
 		write(KEYS.cart, cart);
 		write(KEYS.wishlist, wishlist);
 		write(KEYS.orders, orders);
@@ -1753,19 +1814,22 @@ function StoreProvider({ children }) {
 	const getProduct = (0, import_react.useCallback)((id) => products.find((p) => p.id === id), [products]);
 	const getCategory = (0, import_react.useCallback)((id) => categories.find((c) => c.id === id), [categories]);
 	const addToCart = (0, import_react.useCallback)((productId, qty = 1, opts) => {
+		if (!productId) return;
 		const key = cartKey(productId, opts?.size, opts?.color);
+		const amount = Math.max(1, Math.min(99, Number(qty) || 1));
 		setCart((prev) => {
-			if (prev.find((i) => i.key === key)) return prev.map((i) => i.key === key ? {
+			const next = prev.find((i) => i.key === key) ? prev.map((i) => i.key === key ? {
 				...i,
-				qty: Math.min(99, i.qty + qty)
-			} : i);
-			return [...prev, {
+				qty: Math.min(99, i.qty + amount)
+			} : i) : [...prev, {
 				key,
 				productId,
-				qty,
+				qty: amount,
 				size: opts?.size,
 				color: opts?.color
 			}];
+			write(KEYS.cart, next);
+			return next;
 		});
 	}, []);
 	const updateQty = (0, import_react.useCallback)((key, qty) => {
@@ -2887,8 +2951,8 @@ var buttonVariants = cva("inline-flex items-center justify-center gap-2 whitespa
 		size: {
 			default: "h-10 px-5 py-2",
 			sm: "h-8 rounded-md px-3 text-xs",
-			lg: "h-12 px-8 text-[0.8rem] uppercase tracking-[0.18em]",
-			xl: "h-14 px-10 text-[0.8rem] uppercase tracking-[0.2em]",
+			lg: "h-12 px-8 text-[0.8rem] uppercase tracking-[0.18em] [[lang=bn]_&]:normal-case [[lang=bn]_&]:tracking-normal",
+			xl: "h-14 px-10 text-[0.8rem] uppercase tracking-[0.2em] [[lang=bn]_&]:normal-case [[lang=bn]_&]:tracking-normal",
 			icon: "h-10 w-10"
 		}
 	},
@@ -2987,13 +3051,25 @@ function CartDrawer() {
 	const { t, tf } = useI18n();
 	const { orderUrl } = useWhatsAppCheckout();
 	const navigate = useNavigate();
+	const openedAt = (0, import_react.useRef)(0);
 	const remaining = settings.freeShippingThreshold - subtotal;
 	const progress = settings.freeShippingThreshold > 0 ? Math.min(100, subtotal / settings.freeShippingThreshold * 100) : 100;
+	(0, import_react.useEffect)(() => {
+		if (cartOpen) openedAt.current = Date.now();
+	}, [cartOpen]);
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Sheet, {
 		open: cartOpen,
 		onOpenChange: setCartOpen,
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(SheetContent, {
+			side: "right",
 			className: "flex w-full flex-col gap-0 p-0 sm:max-w-md",
+			onOpenAutoFocus: (e) => e.preventDefault(),
+			onPointerDownOutside: (e) => {
+				if (Date.now() - openedAt.current < 400) e.preventDefault();
+			},
+			onInteractOutside: (e) => {
+				if (Date.now() - openedAt.current < 400) e.preventDefault();
+			},
 			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(SheetHeader, {
 				className: "border-b border-border px-6 py-5 text-left",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(SheetTitle, {
@@ -3849,19 +3925,25 @@ function ReviewsSection() {
 //#region src/components/store/ProductCard.tsx
 function ProductCard({ product, className, priority = false }) {
 	const { addToCart, toggleWishlist, inWishlist, setCartOpen, getCategory } = useStore();
+	const { t, tf, locale } = useI18n();
 	const off = discountPercent(product);
 	const wished = inWishlist(product.id);
 	const soldOut = product.stock <= 0;
-	const needsChoice = (product.sizes?.length ?? 0) > 1;
 	const category = getCategory(product.categoryId);
 	const second = product.images[1];
-	const quickAdd = () => {
+	const displayName = locale === "bn" ? product.nameBn ?? product.name : product.name;
+	const categoryName = category ? locale === "bn" ? category.nameBn : category.name : null;
+	const ctaClass = cn("inline-flex h-10 w-full items-center justify-center gap-2 rounded-md text-xs font-medium transition-colors", locale === "bn" ? "tracking-normal normal-case" : "uppercase tracking-[0.16em]");
+	const quickAdd = (e) => {
+		e?.preventDefault();
+		e?.stopPropagation();
+		if (soldOut) return;
 		addToCart(product.id, 1, {
 			size: product.sizes?.[0],
 			color: product.colors?.[0]?.name
 		});
-		toast.success("Added to your bag", { description: product.name });
-		setCartOpen(true);
+		toast.success(t.addedToBag, { description: displayName });
+		window.setTimeout(() => setCartOpen(true), 0);
 	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("article", {
 		className: cn("group relative flex flex-col", className),
@@ -3871,11 +3953,11 @@ function ProductCard({ product, className, priority = false }) {
 				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Link, {
 					to: "/product/$slug",
 					params: { slug: product.slug },
-					"aria-label": product.name,
-					className: "block h-full w-full",
+					"aria-label": displayName,
+					className: "absolute inset-0 z-0 block",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
 						src: product.images[0],
-						alt: product.name,
+						alt: displayName,
 						width: 768,
 						height: 960,
 						loading: priority ? "eager" : "lazy",
@@ -3890,7 +3972,7 @@ function ProductCard({ product, className, priority = false }) {
 					})]
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					className: "pointer-events-none absolute left-3 top-3 flex flex-col gap-1.5",
+					className: "pointer-events-none absolute left-3 top-3 z-20 flex flex-col gap-1.5",
 					children: [
 						off > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
 							className: "rounded-sm bg-sale px-2 py-1 text-[0.65rem] font-semibold tracking-wider text-sale-foreground",
@@ -3901,66 +3983,45 @@ function ProductCard({ product, className, priority = false }) {
 							]
 						}),
 						product.tags.includes("new") && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-							className: "rounded-sm bg-ink px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-wider text-ink-foreground",
-							children: "New"
+							className: cn("rounded-sm bg-ink px-2 py-1 text-[0.65rem] font-semibold text-ink-foreground", locale === "en" && "uppercase tracking-wider"),
+							children: t.new
 						}),
 						soldOut && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-							className: "rounded-sm bg-card px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-wider text-foreground",
-							children: "Sold out"
+							className: cn("rounded-sm bg-card px-2 py-1 text-[0.65rem] font-semibold text-foreground", locale === "en" && "uppercase tracking-wider"),
+							children: t.soldOut
 						}),
-						!soldOut && product.stock <= 8 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-							className: "rounded-sm bg-gold-soft px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-wider text-gold-foreground",
-							children: [
-								"Only ",
-								product.stock,
-								" left"
-							]
+						!soldOut && product.stock <= 8 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+							className: cn("rounded-sm bg-gold-soft px-2 py-1 text-[0.65rem] font-semibold text-gold-foreground", locale === "en" && "uppercase tracking-wider"),
+							children: tf(t.onlyLeft, { n: product.stock })
 						})
 					]
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 					type: "button",
-					"aria-label": wished ? "Remove from wishlist" : "Add to wishlist",
+					"aria-label": wished ? t.removedWishlist : t.savedWishlist,
 					"aria-pressed": wished,
-					onClick: () => {
+					onClick: (e) => {
+						e.preventDefault();
+						e.stopPropagation();
 						const added = toggleWishlist(product.id);
-						toast(added ? "Saved to wishlist" : "Removed from wishlist", { description: product.name });
+						toast(added ? t.savedWishlist : t.removedWishlist, { description: displayName });
 					},
-					className: "absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-card/90 text-foreground shadow-card backdrop-blur transition-all hover:scale-110",
+					className: "absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-card/90 text-foreground shadow-card backdrop-blur transition-all hover:scale-110",
 					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Heart, { className: cn("h-4 w-4", wished && "fill-sale text-sale") })
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-					className: "absolute inset-x-3 bottom-3 translate-y-2 opacity-100 transition-all duration-300 sm:opacity-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100",
-					children: soldOut ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Link, {
-						to: "/product/$slug",
-						params: { slug: product.slug },
-						className: "flex h-10 w-full items-center justify-center rounded-md bg-card/95 text-xs font-medium uppercase tracking-[0.16em] text-foreground backdrop-blur",
-						children: "View details"
-					}) : needsChoice ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Link, {
-						to: "/product/$slug",
-						params: { slug: product.slug },
-						className: "flex h-10 w-full items-center justify-center gap-2 rounded-md bg-ink/90 text-xs font-medium uppercase tracking-[0.16em] text-ink-foreground backdrop-blur transition-colors hover:bg-ink",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ShoppingBag, { className: "h-3.5 w-3.5" }), " Choose options"]
-					}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-						type: "button",
-						onClick: quickAdd,
-						className: "flex h-10 w-full items-center justify-center gap-2 rounded-md bg-ink/90 text-xs font-medium uppercase tracking-[0.16em] text-ink-foreground backdrop-blur transition-colors hover:bg-ink",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ShoppingBag, { className: "h-3.5 w-3.5" }), " Add to bag"]
-					})
 				})
 			]
 		}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-			className: "flex flex-1 flex-col pt-4",
+			className: "relative z-10 flex flex-1 flex-col pt-4",
 			children: [
-				category && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+				categoryName && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 					className: "eyebrow mb-1.5 text-[0.6rem] text-muted-foreground",
-					children: category.name
+					children: categoryName
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Link, {
 					to: "/product/$slug",
 					params: { slug: product.slug },
 					className: "line-clamp-2 font-display text-lg leading-snug transition-colors hover:text-gold-deep",
-					children: product.name
+					children: displayName
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Rating, {
 					value: product.rating,
@@ -3976,6 +4037,20 @@ function ProductCard({ product, className, priority = false }) {
 						className: "text-sm text-muted-foreground line-through",
 						children: formatBDT(product.compareAt)
 					})]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					className: "mt-3",
+					children: soldOut ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Link, {
+						to: "/product/$slug",
+						params: { slug: product.slug },
+						className: cn(ctaClass, "border border-border bg-card text-foreground"),
+						children: t.viewDetails
+					}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+						type: "button",
+						onClick: quickAdd,
+						className: cn(ctaClass, "bg-ink text-ink-foreground hover:bg-ink-soft"),
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ShoppingBag, { className: "h-3.5 w-3.5 shrink-0" }), t.addToBag]
+					})
 				})
 			]
 		})]
@@ -5597,21 +5672,25 @@ var Route = createFileRoute("/product/$slug")({
 function ProductPage() {
 	const { slug } = Route.useParams();
 	const { products, addToCart, setCartOpen, settings } = useStore();
-	const p = products.find((x) => x.slug === slug);
+	const { t, tf, locale } = useI18n();
+	const p = products.find((x) => x.slug === slug) ?? seedProducts.find((x) => x.slug === slug);
 	const [qty, setQty] = (0, import_react.useState)(1);
 	const [size, setSize] = (0, import_react.useState)(void 0);
 	const [color, setColor] = (0, import_react.useState)(void 0);
 	if (!p) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 		className: "container-luxe py-24 text-center",
-		children: "Product not found."
+		children: t.productNotFound
 	});
+	const localized = localizeProduct(p, locale);
 	const s = size ?? p.sizes?.[0];
 	const c = color ?? p.colors?.[0]?.name;
-	const soldOut = p.stock <= 0;
+	const soldOut = Number(p.stock) <= 0;
+	const bnCta = locale === "bn";
 	const waOrderUrl = whatsappUrl(settings.whatsappNumber, buildOrderMessage({
 		storeName: settings.storeName,
+		locale,
 		lines: [{
-			name: p.name,
+			name: localized.name,
 			qty,
 			price: p.price,
 			size: s,
@@ -5621,23 +5700,27 @@ function ProductPage() {
 		shipping: 0,
 		total: p.price * qty
 	}));
-	const add = () => {
+	const handleAddToBag = (e) => {
+		e.preventDefault();
+		e.stopPropagation();
+		if (soldOut) return;
 		addToCart(p.id, qty, {
 			size: s,
 			color: c
 		});
-		toast.success("Added to your bag", { description: p.name });
+		toast.success(t.addedToBag, { description: localized.name });
+		window.setTimeout(() => setCartOpen(true), 0);
 	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 		className: "container-luxe grid gap-10 py-12 lg:grid-cols-2",
 		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
 			src: p.images[0],
-			alt: p.name,
+			alt: localized.name,
 			className: "aspect-[4/5] w-full rounded-lg object-cover"
 		}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
 				className: "text-4xl",
-				children: p.name
+				children: localized.name
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Rating, {
 				value: p.rating,
@@ -5658,66 +5741,73 @@ function ProductPage() {
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 				className: "mt-2 text-sm",
-				children: soldOut ? "Out of stock" : `In stock (${p.stock})`
+				children: soldOut ? t.outOfStock : tf(t.inStock, { n: p.stock })
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 				className: "mt-4 text-sm leading-relaxed text-muted-foreground",
-				children: p.description
+				children: localized.description
 			}),
 			p.colors && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 				className: "mt-5 flex flex-wrap gap-2",
 				children: p.colors.map((x) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+					type: "button",
 					onClick: () => setColor(x.name),
 					className: cn("rounded-md border px-3 py-1.5 text-sm", c === x.name && "border-foreground"),
-					children: x.name
+					children: locale === "bn" ? x.nameBn ?? x.name : x.name
 				}, x.name))
 			}),
 			p.sizes && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 				className: "mt-3 flex flex-wrap gap-2",
 				children: p.sizes.map((x) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+					type: "button",
 					onClick: () => setSize(x),
 					className: cn("min-w-11 rounded-md border px-3 py-1.5 text-sm", s === x && "border-foreground"),
 					children: x
 				}, x))
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "mt-6 flex flex-wrap gap-3",
+				className: "mt-6 flex flex-wrap items-center gap-3",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(QuantitySelector, {
 					value: qty,
 					onChange: setQty,
-					max: Math.max(1, p.stock)
-				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-					variant: "ink",
-					size: "lg",
+					max: Math.max(1, Number(p.stock) || 1)
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+					type: "button",
 					disabled: soldOut,
-					onClick: () => {
-						add();
-						setCartOpen(true);
-					},
-					children: "Add to Cart"
+					onClick: handleAddToBag,
+					className: cn("inline-flex h-12 min-w-[10rem] flex-1 items-center justify-center rounded-md bg-ink px-8 text-[0.8rem] font-medium text-ink-foreground transition-colors hover:bg-ink-soft disabled:pointer-events-none disabled:opacity-50 sm:flex-none", bnCta ? "normal-case tracking-normal" : "uppercase tracking-[0.18em]"),
+					children: t.addToBag
 				})]
 			}),
 			soldOut ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 				variant: "whatsapp",
 				size: "lg",
-				className: "mt-3 w-full",
+				className: cn("mt-3 w-full", bnCta && "normal-case tracking-normal"),
 				disabled: true,
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(WhatsAppIcon, { className: "h-4 w-4" }), " Order via WhatsApp"]
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(WhatsAppIcon, { className: "h-4 w-4" }),
+					" ",
+					t.orderViaWhatsApp
+				]
 			}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 				variant: "whatsapp",
 				size: "lg",
-				className: "mt-3 w-full",
+				className: cn("mt-3 w-full", bnCta && "normal-case tracking-normal"),
 				asChild: true,
 				children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
 					href: waOrderUrl,
 					target: "_blank",
 					rel: "noopener noreferrer",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(WhatsAppIcon, { className: "h-4 w-4" }), " Order via WhatsApp"]
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(WhatsAppIcon, { className: "h-4 w-4" }),
+						" ",
+						t.orderViaWhatsApp
+					]
 				})
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", {
 				className: "mt-6 list-disc space-y-1 pl-5 text-sm text-muted-foreground",
-				children: p.details.map((d) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: d }, d))
+				children: localized.details.map((d) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: d }, d))
 			})
 		] })]
 	});

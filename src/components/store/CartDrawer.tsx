@@ -1,5 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ShoppingBag, Trash2, Truck } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { useWhatsAppCheckout } from "@/hooks/use-whatsapp-checkout";
@@ -14,12 +15,28 @@ export function CartDrawer() {
   const { t, tf } = useI18n();
   const { orderUrl } = useWhatsAppCheckout();
   const navigate = useNavigate();
+  const openedAt = useRef(0);
   const remaining = settings.freeShippingThreshold - subtotal;
   const progress = settings.freeShippingThreshold > 0 ? Math.min(100, (subtotal / settings.freeShippingThreshold) * 100) : 100;
 
+  useEffect(() => {
+    if (cartOpen) openedAt.current = Date.now();
+  }, [cartOpen]);
+
   return (
     <Sheet open={cartOpen} onOpenChange={setCartOpen}>
-      <SheetContent className="flex w-full flex-col gap-0 p-0 sm:max-w-md">
+      <SheetContent
+        side="right"
+        className="flex w-full flex-col gap-0 p-0 sm:max-w-md"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onPointerDownOutside={(e) => {
+          // Block the same click that opened the bag from instantly dismissing it.
+          if (Date.now() - openedAt.current < 400) e.preventDefault();
+        }}
+        onInteractOutside={(e) => {
+          if (Date.now() - openedAt.current < 400) e.preventDefault();
+        }}
+      >
         <SheetHeader className="border-b border-border px-6 py-5 text-left">
           <SheetTitle className="font-display text-2xl font-medium">{t.yourBag} ({cartCount})</SheetTitle>
           <SheetDescription className="sr-only">{t.yourBag}</SheetDescription>
