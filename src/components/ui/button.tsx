@@ -23,8 +23,8 @@ const buttonVariants = cva(
       size: {
         default: "h-10 px-5 py-2",
         sm: "h-8 rounded-md px-3 text-xs",
-        lg: "h-12 px-8 text-[0.8rem] uppercase tracking-[0.18em]",
-        xl: "h-14 px-10 text-[0.8rem] uppercase tracking-[0.2em]",
+        lg: "h-12 px-8 text-[0.8rem] uppercase tracking-[0.18em] [[lang=bn]_&]:normal-case [[lang=bn]_&]:tracking-normal",
+        xl: "h-14 px-10 text-[0.8rem] uppercase tracking-[0.2em] [[lang=bn]_&]:normal-case [[lang=bn]_&]:tracking-normal",
         icon: "h-10 w-10",
       },
     },
