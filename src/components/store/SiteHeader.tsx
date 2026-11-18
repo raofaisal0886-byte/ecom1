@@ -152,7 +152,8 @@ export function SiteHeader() {
           </nav>
 
           <div className="flex items-center gap-0.5 sm:gap-1">
-            <LanguageSwitcher compact className="mr-1 hidden sm:inline-flex" />
+            {/* Always visible on mobile + desktop — language is a primary control for BD shoppers */}
+            <LanguageSwitcher compact className="mr-1" />
             <button aria-label={t.search} onClick={() => setSearchOpen(true)} className="rounded-full p-2.5 transition-colors hover:bg-sand"><Search className="h-5 w-5" /></button>
             <Link to={session ? "/account" : "/login"} aria-label={t.account} className="hidden rounded-full p-2.5 transition-colors hover:bg-sand sm:block"><User className="h-5 w-5" /></Link>
             <Link to="/wishlist" aria-label={t.wishlist} className="relative hidden rounded-full p-2.5 transition-colors hover:bg-sand sm:block">

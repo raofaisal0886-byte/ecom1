@@ -1,4 +1,4 @@
-//#region node_modules/.nitro/vite/services/ssr/assets/_tanstack-start-manifest_v-DsKhh-Ce.js
+//#region node_modules/.nitro/vite/services/ssr/assets/_tanstack-start-manifest_v-DG8exRqH.js
 var tsrStartManifest = () => ({ routes: {
 	__root__: {
 		filePath: "D:/ecom/vite-project/src/routes/__root.tsx",
@@ -27,7 +27,7 @@ var tsrStartManifest = () => ({ routes: {
 			"/product/$slug"
 		],
 		preloads: [
-			"/assets/index-6o0RTcEY.js",
+			"/assets/index-BL8AH6bx.js",
 			"/assets/createLucideIcon-CPqeLbuJ.js",
 			"/assets/dist-D2M8EZN6.js",
 			"/assets/preload-helper-CsbKfap8.js",
@@ -48,14 +48,14 @@ var tsrStartManifest = () => ({ routes: {
 		scripts: [{ attrs: {
 			type: "module",
 			async: !0,
-			src: "/assets/index-6o0RTcEY.js"
+			src: "/assets/index-BL8AH6bx.js"
 		} }]
 	},
 	"/": {
 		filePath: "D:/ecom/vite-project/src/routes/index.tsx",
 		children: void 0,
 		preloads: [
-			"/assets/routes-DhxxoDM6.js",
+			"/assets/routes-Bj-Pcfwr.js",
 			"/assets/badge-check-BXyHDg5W.js",
 			"/assets/chevron-right-CsCh50Qe.js",
 			"/assets/Rating-BQvcOIl-.js",

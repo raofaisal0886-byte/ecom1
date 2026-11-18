@@ -6,21 +6,23 @@ import { b as Link } from "../_libs/@tanstack/react-router+[...].mjs";
 import { A as ArrowRight, D as ChevronLeft, E as ChevronRight, d as RotateCcw, f as Quote, i as Truck, k as BadgeCheck, l as ShieldCheck } from "../_libs/lucide-react.mjs";
 import { t as cn } from "./format-DqyaZc8U.mjs";
 import { t as Button } from "./button-DxQ9lLK0.mjs";
+import { r as useI18n } from "./i18n-C3NrtDaS.mjs";
 import { t as Rating } from "./Rating-Dyry1IkP.mjs";
 import { n as toast } from "../_libs/sonner.mjs";
 import { t as ProductCard } from "./ProductCard-B8rPbcWe.mjs";
 import { t as stringType } from "../_libs/zod.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-C4bdhtI7.js
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-CVcfNUit.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 function HeroSlider() {
 	const { banners } = useStore();
+	const { locale, t } = useI18n();
 	const [index, setIndex] = (0, import_react.useState)(0);
 	const count = banners.length;
 	(0, import_react.useEffect)(() => {
 		if (count < 2) return;
-		const t = setInterval(() => setIndex((i) => (i + 1) % count), 7e3);
-		return () => clearInterval(t);
+		const timer = setInterval(() => setIndex((i) => (i + 1) % count), 7e3);
+		return () => clearInterval(timer);
 	}, [count, index]);
 	(0, import_react.useEffect)(() => {
 		if (index >= count) setIndex(0);
@@ -30,58 +32,65 @@ function HeroSlider() {
 		className: "relative h-[78vh] min-h-[520px] max-h-[860px] overflow-hidden bg-ink",
 		"aria-roledescription": "carousel",
 		"aria-label": "Featured collections",
-		children: [banners.map((b, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-			className: cn("absolute inset-0 transition-opacity duration-1000", i === index ? "opacity-100" : "pointer-events-none opacity-0"),
-			"aria-hidden": i !== index,
-			children: [
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
-					src: b.image,
-					alt: "",
-					width: 1920,
-					height: 1088,
-					loading: i === 0 ? "eager" : "lazy",
-					className: cn("h-full w-full object-cover object-[70%_center]", i === index && "animate-ken-burns")
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "absolute inset-0 bg-hero-fade" }),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "absolute inset-0 bg-gradient-to-t from-ink/60 via-transparent to-transparent sm:hidden" }),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-					className: "container-luxe absolute inset-0 flex items-end pb-20 sm:items-center sm:pb-0",
-					children: i === index && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "max-w-xl text-ink-foreground",
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								className: "eyebrow mb-5 text-gold animate-fade-up",
-								children: b.eyebrow
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
-								className: "text-5xl leading-[1.02] sm:text-6xl lg:text-7xl animate-fade-up [animation-delay:120ms]",
-								children: b.title
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								className: "mt-5 max-w-md text-sm leading-relaxed text-ink-foreground/80 sm:text-base animate-fade-up [animation-delay:240ms]",
-								children: b.subtitle
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "mt-8 flex flex-wrap gap-3 animate-fade-up [animation-delay:360ms]",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", {
-									href: b.ctaHref,
-									className: "inline-flex h-14 items-center justify-center rounded-md bg-gold-gradient px-10 text-[0.8rem] font-medium uppercase tracking-[0.2em] text-gold-foreground shadow-gold transition-all hover:-translate-y-0.5 hover:brightness-110",
-									children: b.ctaLabel
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Link, {
-									to: "/shop",
-									className: "inline-flex h-14 items-center justify-center rounded-md border border-ink-foreground/50 px-10 text-[0.8rem] font-medium uppercase tracking-[0.2em] text-ink-foreground transition-colors hover:bg-ink-foreground hover:text-ink",
-									children: "Shop Now"
-								})]
-							})
-						]
+		children: [banners.map((b, i) => {
+			const eyebrow = locale === "bn" ? b.eyebrowBn ?? b.eyebrow : b.eyebrow;
+			const title = locale === "bn" ? b.titleBn ?? b.title : b.title;
+			const subtitle = locale === "bn" ? b.subtitleBn ?? b.subtitle : b.subtitle;
+			const ctaLabel = locale === "bn" ? b.ctaLabelBn ?? b.ctaLabel : b.ctaLabel;
+			return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: cn("absolute inset-0 transition-opacity duration-1000", i === index ? "opacity-100" : "pointer-events-none opacity-0"),
+				"aria-hidden": i !== index,
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+						src: b.image,
+						alt: "",
+						width: 1920,
+						height: 1088,
+						loading: i === 0 ? "eager" : "lazy",
+						className: cn("h-full w-full object-cover object-[70%_center]", i === index && "animate-ken-burns")
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "absolute inset-0 bg-hero-fade" }),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "absolute inset-0 bg-gradient-to-t from-ink/60 via-transparent to-transparent sm:hidden" }),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "container-luxe absolute inset-0 flex items-end pb-20 sm:items-center sm:pb-0",
+						children: i === index && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "max-w-xl text-ink-foreground",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: cn("mb-5 text-gold animate-fade-up", locale === "bn" ? "font-sans text-sm font-medium tracking-normal normal-case" : "eyebrow"),
+									children: eyebrow
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
+									className: "text-5xl leading-[1.02] sm:text-6xl lg:text-7xl animate-fade-up [animation-delay:120ms]",
+									children: title
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-5 max-w-md text-sm leading-relaxed text-ink-foreground/80 sm:text-base animate-fade-up [animation-delay:240ms]",
+									children: subtitle
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "mt-8 flex flex-wrap gap-3 animate-fade-up [animation-delay:360ms]",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", {
+										href: b.ctaHref,
+										className: cn("inline-flex h-14 items-center justify-center rounded-md bg-gold-gradient px-10 text-[0.8rem] font-medium text-gold-foreground shadow-gold transition-all hover:-translate-y-0.5 hover:brightness-110", locale === "bn" ? "normal-case tracking-normal" : "uppercase tracking-[0.2em]"),
+										children: ctaLabel
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Link, {
+										to: "/shop",
+										className: cn("inline-flex h-14 items-center justify-center rounded-md border border-ink-foreground/50 px-10 text-[0.8rem] font-medium text-ink-foreground transition-colors hover:bg-ink-foreground hover:text-ink", locale === "bn" ? "normal-case tracking-normal" : "uppercase tracking-[0.2em]"),
+										children: t.shopNow
+									})]
+								})
+							]
+						})
 					})
-				})
-			]
-		}, b.id)), count > 1 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				]
+			}, b.id);
+		}), count > 1 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 			className: "container-luxe absolute inset-x-0 bottom-6 flex items-center justify-between",
 			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 				className: "flex gap-2",
 				children: banners.map((b, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+					type: "button",
 					"aria-label": `Show slide ${i + 1}`,
 					onClick: () => setIndex(i),
 					className: cn("h-1 rounded-full transition-all duration-500", i === index ? "w-10 bg-gold" : "w-5 bg-ink-foreground/40 hover:bg-ink-foreground/70")
@@ -89,11 +98,13 @@ function HeroSlider() {
 			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "hidden gap-2 sm:flex",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+					type: "button",
 					"aria-label": "Previous slide",
 					onClick: () => setIndex((index - 1 + count) % count),
 					className: "flex h-11 w-11 items-center justify-center rounded-full border border-ink-foreground/30 text-ink-foreground transition-colors hover:bg-ink-foreground hover:text-ink",
 					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChevronLeft, { className: "h-5 w-5" })
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+					type: "button",
 					"aria-label": "Next slide",
 					onClick: () => setIndex((index + 1) % count),
 					className: "flex h-11 w-11 items-center justify-center rounded-full border border-ink-foreground/30 text-ink-foreground transition-colors hover:bg-ink-foreground hover:text-ink",

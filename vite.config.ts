@@ -1,9 +1,13 @@
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import { nitro } from "nitro/vite";
 import viteReact from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
-import { nitro } from "nitro/vite";
 
+// Official TanStack Start + Nitro order:
+// tanstackStart() → nitro() → viteReact()
+// Wrong order leaves production HTML pointing at
+// /@id/virtual:tanstack-start-dev-client-entry (404) so React never hydrates.
 export default defineConfig({
   server: {
     port: 3000,
@@ -16,7 +20,7 @@ export default defineConfig({
     tanstackStart({
       srcDirectory: "src",
     }),
-    viteReact(),
     nitro(),
+    viteReact(),
   ],
 });

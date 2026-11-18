@@ -18,10 +18,10 @@ import { t as Route$21 } from "./product._slug-BYuLD6It.mjs";
 import { t as Route$22 } from "./shop-H3pORv8E.mjs";
 import { t as QueryClientProvider } from "../_libs/tanstack__react-query.mjs";
 import { t as QueryClient } from "../_libs/tanstack__query-core.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/router-8Kr6ZJYx.js
+//#region node_modules/.nitro/vite/services/ssr/assets/router-D1o8f7jQ.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
-var styles_default = "/assets/styles-D6LY18nK.css";
+var styles_default = "/assets/styles-Bk7ZcOPa.css";
 function reportLovableError(error, context = {}) {
 	if (typeof window === "undefined") return;
 	window.__lovableEvents?.captureException?.(error, {
@@ -430,7 +430,7 @@ function SiteHeader() {
 						children: [
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(LanguageSwitcher, {
 								compact: true,
-								className: "mr-1 hidden sm:inline-flex"
+								className: "mr-1"
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 								"aria-label": t.search,
@@ -1232,7 +1232,7 @@ function StoreChrome({ children }) {
 		]
 	});
 }
-var $$splitComponentImporter$18 = () => import("./routes-C4bdhtI7.mjs");
+var $$splitComponentImporter$18 = () => import("./routes-CVcfNUit.mjs");
 var Route$18 = createFileRoute("/")({
 	head: () => ({ meta: [
 		{ title: "Blackwell BD — Premium Fashion, Beauty & Lifestyle Store in Bangladesh" },
